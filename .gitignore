@@ -1,0 +1,7 @@
+__pycache__/
+
+# Json tests
+*.json
+
+# Api tests
+league.py
