@@ -1,1 +1,1 @@
-Useful library for requesting to API-Football
+Useful library for API-football.
