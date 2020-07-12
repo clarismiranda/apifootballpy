@@ -1,5 +1,5 @@
 from datetime import datetime
-import football
+from . import football
 import http.client
 import json
 
@@ -26,6 +26,14 @@ class APIFootball:
 			return str(datetime.now().year-1)
 		else:
 			return season
+
+	"""
+		Private method for setting attributes from a list
+		to an object
+	"""
+	def _set_to_object(self, lst_obj, lst_key, obj):
+		for i in range(0,len(lst_obj)):
+			setattr(obj, lst_key[i], lst_obj[i])
 	
 	"""
 		Public method for getting the leagues of the clients country
@@ -43,7 +51,7 @@ class APIFootball:
 		data = res.read()
 		leagues = json.loads(data)
 		
-		# List of id, name, type, last season start and end date
+		# List of leagues objects
 		lst = []
 		for league in leagues["response"]:
 			l = league["league"]
@@ -64,19 +72,100 @@ class APIFootball:
 	"""
 	def get_teams(self, league, season=None):
 		if season == None:
-			season = self.Client.season
+			season = self.season
 		# Uses the default client season if not changed
 		endpoint = "/teams?league=" + league + "&season=" + season
 		# Request to the API
 		self.Client.conn.request("GET", endpoint, headers=self.Client.headers)
 		res = self.Client.conn.getresponse()
-		teams = res.json
-		# List of id, name
-		lst = []
+		data = res.read()
+		teams = json.loads(data)
+		
+		# Dictionary of teams
+		dct = {}
 		for team in teams["response"]:
-			lst.append([team["id"],team["name"]])
+			team = team["team"]
+			# The id of the team
+			id_t = team["id"]
+			# The object team
+			t = football.Team(team["id"], team["name"])
+			dct[id_t] = t
+		return dct, teams["response"]
 
-		return lst, teams["response"]
+	"""
+		Public method for getting a teams statistics in a league season
+		league: the id of a league
+		season: the YYYY format of the season to search
+		team: the id of the team
+		to: the YYYY-MM-DD to limit date
+		Returns stats when home, stats when away
+	"""
+	def get_teams_stats(self, team, league, season=None, to=None):
+		if season == None:
+			season = self.season
+		endpoint = "/teams/statistics?league=" + league + "&season=" + season + "&team=" + team
+		if to != None:
+			endpoint = endpoint + "&to=" + to
+		# Request to the API
+		self.Client.conn.request("GET", endpoint, headers=self.Client.headers)
+		res = self.Client.conn.getresponse()
+		data = res.read()
+		stats = json.loads(data)
+		# Processing statistics
+		lst_home = []
+		lst_away = []
+		stats = stats["response"]
+		for key, value in stats["fixtures"].items():
+			lst_home.append(value["home"])
+			lst_away.append(value["away"])
+		for key, value in stats["goals"].items():
+			for k, v in value.items():
+				# Everything from home matches
+				lst_home.append(v["home"])
+				# Everything from away matches
+				lst_away.append(v["away"])
+		lst_home.append(stats["clean_sheet"]["home"])
+		lst_away.append(stats["clean_sheet"]["away"])
+		lst_home.append(stats["failed_to_score"]["home"])
+		lst_away.append(stats["failed_to_score"]["away"])
+		# Creating empty variable
+		stats_home = football.Stats()
+		stats_away = football.Stats()
+		# Keys for stats
+		lst_keys = stats_home.ks
+		# Setting stats
+		self._set_to_object(lst_home, lst_keys, stats_home)
+		self._set_to_object(lst_away, lst_keys, stats_away)
+		
+		lst_home = []
+		lst_away = []
+		# Defining streaks
+		streak = stats["biggest"]
+		for key, value in streak["streak"].items():
+			lst_home.append(value)
+			lst_away.append(value)
+		lst_home.append(streak["wins"]["home"])
+		lst_away.append(streak["wins"]["away"])
+		lst_home.append(streak["loses"]["home"])
+		lst_away.append(streak["wins"]["away"])
+		for key, value in streak["goals"].items():
+			# Everything from home matches
+			lst_home.append(value["home"])
+			# Everything from away matches
+			lst_away.append(value["away"])
+		# Creating empty variables
+		streaks_home = football.Streaks()
+		streaks_away = football.Streaks()
+		# Keys for stats
+		lst_keys = streaks_home.ks
+		# Setting stats
+		self._set_to_object(lst_home, lst_keys, streaks_home)
+		self._set_to_object(lst_away, lst_keys, streaks_away)
+		# Finishing stats
+		stats_home.streaks = streaks_home
+		stats_away.streaks = streaks_away
+		
+		return stats_home, stats_away
 
 	"""
 		Public method for getting the standings in a given league and season
@@ -86,19 +175,26 @@ class APIFootball:
 	"""
 	def get_standings(self, league, season=None):
 		if season == None:
-			season = self.Client.season
+			season = self.season
 		# Uses the default client season if not changed
 		endpoint = "/standings?league=" + league + "&season=" + season
 		# Request to the API
 		self.Client.conn.request("GET", endpoint, headers=self.Client.headers)
 		res = self.Client.conn.getresponse()
-		teams = res.json
-		# List of id, name
-		lst = []
-		for team in teams:
-			lst.append(list(team["id"],team["name"]))
+		data = res.read()
+		standings = json.loads(data)
+		
+		# Dictionary of teams with rank
+		dct = {}
+		for team in standings["response"][0]["league"]["standings"][0]:
+			print(team)
+			id_t = str(team["team"]["id"])
+			t = football.Team(id_t, team["team"]["name"])
+			stand = football.Standings(t, team["rank"], team["points"], 
+					team["goalsDiff"], team["form"], team["description"])
+			dct[id_t] = stand
 
-		return lst
+		return dct, standings["response"][0]
 
 	"""
 		Public method for getting the matches in a given league and season
@@ -113,7 +209,7 @@ class APIFootball:
 	"""
 	def get_fixtures(self, league, season=None, team=None, last=None, nxt=None, frm=None, to=None):
 		if season == None:
-			season = self.Client.season
+			season = self.season
 		# Uses the default client season if not changed
 		endpoint = "/fixtures?league=" + league + "&season=" + season
 		if team != None:
@@ -129,13 +225,19 @@ class APIFootball:
 		# Request to the API
 		self.Client.conn.request("GET", endpoint, headers=self.Client.headers)
 		res = self.Client.conn.getresponse()
-		teams = res.json
-		# List of id, name
-		lst = []
-		for team in teams:
-			lst.append(list(team["id"],team["name"]))
+		data = res.read()
+		fixtures = json.loads(data)
+		# List of id_fixtrue, id_home, id_against, name_home, name_against
+		dct = {}
+		for match in fixtures["response"]:
+			dct[match["fixture"]["id"]] = {
+				"home_id" : match["teams"]["home"]["id"],
+				"home_name" : match["teams"]["home"]["name"],
+				"away_id" : match["teams"]["away"]["id"],
+				"away_name" : match["teams"]["away"]["name"]
+			}
 
-		return lst
+		return dct, fixtures["response"]
 
 	"""
 		Public method for getting the statistics in a given fixture
@@ -155,7 +257,6 @@ class APIFootball:
 		lst = []
 		for team in teams:
 			lst.append(list(team["id"],team["name"]))
-
 		return lst
 
 # A client for API-Football
@@ -174,3 +275,8 @@ class Client:
     		'x-rapidapi-host': host,
     		'x-rapidapi-key': key
     	}
+
+# Custom JSONEncoder
+class CustomEncoder(json.JSONEncoder):
+	def default(self, o):
+		return o.__dict__
