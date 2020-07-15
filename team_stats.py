@@ -31,7 +31,7 @@ barca = standings['529']
 barca.stats_home = home_barca
 barca.stats_away = away_barca
 
-# Save finish standings into a json  
+# Save final standings into a json  
 json_object = json.dumps(barca, indent = 4, cls=CustomEncoder)  
 # Saving into file
 with open("barca.json", "w") as outfile: 

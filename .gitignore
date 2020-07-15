@@ -5,6 +5,8 @@ __pycache__/
 
 # Api tests
 league.py
+fteam_stats.py
+ffixtures_stats.py
 
 # Github Cache
 .DS_Store

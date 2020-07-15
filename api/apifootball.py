@@ -6,10 +6,10 @@ import json
 # A custom client for API-Football
 class APIFootball:
 	"""
-			Client: the HTTP Client to the API
-			country: the Alpha2code of the country
-			league: the type of the league, is it a tournament or cup
-			season: the YYYY of the season league
+		Client: the HTTP Client to the API
+		country: the Alpha2code of the country
+		league: the type of the league, is it a tournament or cup
+		season: the YYYY of the season league
 	"""
 	
 	def __init__(self, Client, country, season=None, league=None):
@@ -86,7 +86,7 @@ class APIFootball:
 		for team in teams["response"]:
 			team = team["team"]
 			# The id of the team
-			id_t = team["id"]
+			id_t = str(team["id"])
 			# The object team
 			t = football.Team(team["id"], team["name"])
 			dct[id_t] = t
@@ -121,9 +121,9 @@ class APIFootball:
 		for key, value in stats["goals"].items():
 			for k, v in value.items():
 				# Everything from home matches
-				lst_home.append(v["home"])
+				lst_home.append(float(v["home"]))
 				# Everything from away matches
-				lst_away.append(v["away"])
+				lst_away.append(float(v["away"]))
 		lst_home.append(stats["clean_sheet"]["home"])
 		lst_away.append(stats["clean_sheet"]["away"])
 		lst_home.append(stats["failed_to_score"]["home"])
@@ -187,7 +187,6 @@ class APIFootball:
 		# Dictionary of teams with rank
 		dct = {}
 		for team in standings["response"][0]["league"]["standings"][0]:
-			print(team)
 			id_t = str(team["team"]["id"])
 			t = football.Team(id_t, team["team"]["name"])
 			stand = football.Standings(t, team["rank"], team["points"], 
@@ -203,17 +202,21 @@ class APIFootball:
 		team: the id of a team
 		last: the last N fixtures
 		nxt: the next N fixtures
+		date: the exact date as YYYY-MM-DD
 		frm: starting date as YYYY-MM-DD
-		to: endind date as YYYY-MM-DD
+		to: ending date as YYYY-MM-DD
 		Returns the ids, name of the team and against team and its fixtures
 	"""
-	def get_fixtures(self, league, season=None, team=None, last=None, nxt=None, frm=None, to=None):
+	def get_fixtures(self, league, season=None, team=None, last=None,
+					nxt=None, date=None, frm=None, to=None):
 		if season == None:
 			season = self.season
 		# Uses the default client season if not changed
 		endpoint = "/fixtures?league=" + league + "&season=" + season
 		if team != None:
 			endpoint = endpoint + "&team=" + team
+		if date != None:
+			endpoint = endpoint + "&date=" + date
 		if last != None:
 			endpoint = endpoint + "&last=" + last
 		if nxt != None:
@@ -227,16 +230,15 @@ class APIFootball:
 		res = self.Client.conn.getresponse()
 		data = res.read()
 		fixtures = json.loads(data)
-		# List of id_fixtrue, id_home, id_against, name_home, name_against
+		# List of id_fixtrure: id_home, id_against, name_home, name_against
 		dct = {}
 		for match in fixtures["response"]:
-			dct[match["fixture"]["id"]] = {
-				"home_id" : match["teams"]["home"]["id"],
-				"home_name" : match["teams"]["home"]["name"],
-				"away_id" : match["teams"]["away"]["id"],
-				"away_name" : match["teams"]["away"]["name"]
-			}
-
+			id_f = match["fixture"]["id"]
+			team = match["teams"]
+			team_home = football.Team(team["home"]["id"], team["home"]["name"])
+			team_away = football.Team(team["away"]["id"], team["away"]["name"])
+			goals = match["goals"]
+			dct[id_f] = football.Fixture(team_home, team_away, goals["home"], goals["away"])
 		return dct, fixtures["response"]
 
 	"""
@@ -246,26 +248,36 @@ class APIFootball:
 		Returns the ids of the theam and its statistics
 	"""
 	def get_statistics(self, fixture, team=None):
-		endpoint = "fixtures/statistics?fixture=" + fixture
+		endpoint = "/fixtures/statistics?fixture=" + fixture
 		if team != None:
 			endpoint = endpoint + "&team=" + team
 		# Request to the API
 		self.Client.conn.request("GET", endpoint, headers=self.Client.headers)
 		res = self.Client.conn.getresponse()
-		teams = res.json
-		# List of id, name
-		lst = []
-		for team in teams:
-			lst.append(list(team["id"],team["name"]))
-		return lst
+		data = res.read()
+		statistics = json.loads(data)
+		# Dictionary of id_team : fixture object with statistics
+		dct = {}
+		for team in statistics["response"]:
+			id_t = str(team["team"]["id"])
+			lst_stats = []
+			for stat in team["statistics"]:
+				lst_stats.append(stat["value"])
+			# Keys for stats
+			stats = football.StatsFixture()
+			lst_keys = stats.ks
+			# Setting stats
+			self._set_to_object(lst_stats, lst_keys, stats)
+			dct[id_t] = stats
+		return dct, statistics["response"]
 
 # A client for API-Football
 class Client:
 	"""
-			key: the rapidapi key
-			host: the endpoint version to the API
-			conn: the HTTP connection with host
-			headers: the Headers with key and host
+		key: the rapidapi key
+		host: the endpoint version to the API
+		conn: the HTTP connection with host
+		headers: the Headers with key and host
 	"""
 	def __init__(self, key, host, conn=None, headers=None):
 		self.key = key
