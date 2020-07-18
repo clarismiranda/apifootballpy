@@ -45,8 +45,8 @@ for k, v in matches.items():
 	except:
 		# Dictionary for saving future matches
 		dct_future[match_id] = {
-			"home_id" = home_team
-			"away_id" = away_team
+			"home_id" : home_team,
+			"away_id" : away_team
 		}
 	# Save finish standings into a json  
 	json_object = json.dumps(match, indent = 4, cls=CustomEncoder)  
