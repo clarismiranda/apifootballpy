@@ -27,8 +27,10 @@ cl = Client(api_key, api_host)
 af_cl = APIFootball(cl,'ES', season)
 # Retrieving all matches in the league
 matches, _ = af_cl.get_fixtures(league)
+
 # Future matches dictionary
 dct_future = {}
+
 for k, v in matches.items():
 	match_id = str(k)
 	home_team = str(v.team_home.id)
@@ -53,12 +55,13 @@ for k, v in matches.items():
 	# Saving into file
 	file_home = temp_home + '/' + match_id + ".json"
 	file_away = temp_away + '/' + match_id + ".json"
-	# Path for saving future games
-	file_future = dirName + "next.json"
 	with open(file_home, "w") as outfile: 
 		outfile.write(json_object)
 	with open(file_away, "w") as outfile: 
 		outfile.write(json_object)
-	# Writting future games into a file
-	with open(dirName) as outfile:
-		outfile.write(dct_future)
+
+# Path for saving future games
+file_future = dirName + "/next.json"
+# Writting future games into a file
+with open(file_future) as outfile:
+	outfile.write(dct_future)
