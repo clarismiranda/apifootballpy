@@ -29,7 +29,7 @@ af_cl = APIFootball(cl, country, season)
 # Getting today's date
 today = str(date.today())
 # Retrieving all matches in the league
-matches, _ = af_cl.get_fixtures(league, frm=today, to='2020-07-26')
+matches, _ = af_cl.get_fixtures(league, frm=today, to='2020-08-10')
 
 # Output array of pair of teams in future matches
 future_teams = []
