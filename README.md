@@ -6,10 +6,10 @@ export AF_KEY=""\
 export DIR_NAME="../PCA/"
 
 ## Team Standings
-python team_stats.py\
+python team_stats.py
 
 ## Fixtures Statistics
-python fixtures_stats.py\
+python fixtures_stats.py
 
 ## Leagues
 python list_leagues.py --country --season\
